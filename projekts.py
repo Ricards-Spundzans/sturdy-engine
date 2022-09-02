@@ -8,14 +8,28 @@ from http.client import FOUND
 from logging import root
 from multiprocessing.connection import wait
 from operator import ge, le
-import os, re
+import os,io
 import pickle
+
+
+from datetime import timedelta
+import time
+import datetime
+from threading import Thread
+import os.path
+
+import pathlib
+import docx2txt
 import fitz
 from PIL import Image
-import io
-import aspose.words as aw
+import pytesseract
+import cv2
+import numpy as np
+
 
 import re   # regular expression
+from sklearn import linear_model
+
 from sys import api_version
 import tkinter.filedialog as fd
 import tkinter as tk
@@ -23,24 +37,14 @@ from traceback import print_tb
 from turtle import st
 from urllib import request, response
 from pytz_deprecation_shim import timezone
-from setuptools import Command
-import textract
-import time
-from threading import Thread
-import datetime
-import os.path
-from collections import Counter
-import matplotlib.pylab as plt
-from datetime import timedelta
+
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-
 from googleapiclient.http import MediaFileUpload
-
 
 
 
@@ -86,8 +90,6 @@ def Create_Service(client_secret_file, api_name, api_version, *scopes, prefix=''
 		print(f'Failed to create service instance for {API_SERVICE_NAME}')
 		os.remove(os.path.join(working_dir, token_dir, pickle_file))
 		return None
-
-
 
 
 
@@ -143,11 +145,7 @@ except HttpError as error:
 
 
 
-
-
-
-
-#       Piemērs ar kalendāra izveidi !!!!!!!!!!!!!!!!
+#       Piemērs ar kalendāra izveidi 
 # Nepieciešams palaist tikai vienu reizi, lai izeidotu kalendāru ar jaunu nosaukumu
 
 #request_body = {
@@ -181,6 +179,319 @@ for x in response:
 
 
 
+
+
+
+def analizeLaiks(sakums, beigas, veids):
+    
+    laiksSakums = sakums.replace("T"," ")
+    laiksBeigas = beigas.replace("T"," ")
+
+    delta = datetime.datetime.strptime(laiksBeigas, "%Y-%m-%d %H:%M:%S") - datetime.datetime.strptime(laiksSakums, "%Y-%m-%d %H:%M:%S")
+    secDelt = delta.total_seconds()
+
+
+
+    if veids == 0:
+        #print("Lidojums")
+
+        ### vai ir novērojama aizkave pildāmajā uzdevumā
+        X = np.array(
+        [
+        7200, 
+        6600, 
+        8400, 
+        8000, 
+        8300, 
+        8350,
+
+        9145, 
+        9120, 
+        9170, 
+        9045, 
+        9170, 
+        9283
+        ]
+        ).reshape(-1,1)
+
+        y = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0])
+
+        logr = linear_model.LogisticRegression()
+        logr.fit(X,y)
+
+        predicted = logr.predict(np.array([secDelt]).reshape(-1,1))
+      
+        if predicted == False:
+            return("Darba izpildē ir novērojama aizkave")
+
+        if predicted == True: 
+            ## nav aizkave, taču ir jāpārbauda, vai darbs nav veikts par ātru
+            
+            ### vai ir novērojams pārāk ātrs darbs
+            X = np.array(
+                [
+                7200, 
+                6600, 
+                8400, 
+                8000, 
+                8300, 
+                8350,
+
+                6000, 
+                6234, 
+                6312, 
+                6155, 
+                6258, 
+                5925
+                ]).reshape(-1,1)
+
+            y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+            logr = linear_model.LogisticRegression()
+            logr.fit(X,y)
+
+            predicted = logr.predict(np.array([secDelt]).reshape(-1,1))
+
+            if predicted == False:
+                return ("Darbs tika izpildīts pārāk ātri")
+
+            if predicted == True:
+                return ("Rezultāts ir ticams")
+
+
+
+
+    if veids == 1:
+        # print("Braukšana")
+
+        ### vai ir novērojama aizkave pildāmajā uzdevumā
+        X = np.array(
+       [
+        1900, 
+        1900, 
+        1960, 
+        2100, 
+        1920, 
+        1800,
+
+        2202, 
+        2310, 
+        2500, 
+        2350, 
+        2420, 
+        2420
+        ]
+        ).reshape(-1,1)
+
+        y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+        logr = linear_model.LogisticRegression()
+        logr.fit(X,y)
+
+        predicted = logr.predict(np.array([secDelt]).reshape(-1,1))
+      
+        if predicted == False:
+            return("Darba izpildē ir novērojama aizkave")
+
+        if predicted == True: 
+            ## nav aizkave, taču ir jāpārbauda, vai darbs nav veikts par ātru
+            
+            ### vai ir novērojams pārāk ātrs darbs
+            X = np.array(
+                [
+                1240, 
+                1140, 
+                1210, 
+                1150, 
+                1160, 
+                1120,
+
+                1010, 
+                900, 
+                950, 
+                1000, 
+                910, 
+                920
+                ]
+                ).reshape(-1,1)
+
+            y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+            logr = linear_model.LogisticRegression()
+            logr.fit(X,y)
+
+            predicted = logr.predict(np.array([secDelt]).reshape(-1,1))
+
+            if predicted == False:
+                return ("Darbs tika izpildīts pārāk ātri")
+
+            if predicted == True:
+                return ("Rezultāts ir ticams")
+
+
+
+    if veids == 2:
+        print("Viesnīca")
+
+        ### vai ir novērojama aizkave pildāmajā uzdevumā
+        X = np.array(
+        [
+        0.9, 
+        1, 
+        1, 
+        1.2, 
+        0.8, 
+        0.6,
+
+
+        1.5, 
+        1.7, 
+        2, 
+        1.6, 
+        3,
+        2.3,
+        ]
+
+        ).reshape(-1,1)
+
+        y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+        logr = linear_model.LogisticRegression()
+        logr.fit(X,y)
+
+        predicted = logr.predict(np.array([secDelt/86400]).reshape(-1,1))
+      
+        if predicted == False:
+            return("Darba izpildē ir novērojama aizkave")
+
+        if predicted == True: 
+            ## nav aizkave, taču ir jāpārbauda, vai darbs nav veikts par ātru
+            
+            ### vai ir novērojams pārāk ātrs darbs
+            X = np.array(
+                [
+                0.9, 
+                1, 
+                1, 
+                1.2, 
+                0.8, 
+                0.6,
+
+
+                0.3, 
+                0.3, 
+                0.4, 
+                0.5, 
+                0.3,
+                0.4,
+                ]).reshape(-1,1)
+
+            y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+            logr = linear_model.LogisticRegression()
+            logr.fit(X,y)
+
+            predicted = logr.predict(np.array([secDelt/86400]).reshape(-1,1))
+
+            if predicted == False:
+                return ("Darbs tika izpildīts pārāk ātri")
+
+            if predicted == True:
+                return ("Rezultāts ir ticams")
+
+
+    if veids == 3:
+
+        print("Brīvdienas")
+
+       ### vai ir novērojama aizkave pildāmajā uzdevumā
+        X = np.array(
+        [
+        5.6, 
+        6.1, 
+        3.2, 
+        4.4, 
+        3.9, 
+        5.2,
+
+
+        10, 
+        9.5, 
+        8.6, 
+        11, 
+        9.1,
+        8.9, 
+        ]
+
+        ).reshape(-1,1)
+
+        y = np.array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+        logr = linear_model.LogisticRegression()
+        logr.fit(X,y)
+
+        predicted = logr.predict(np.array([secDelt/86400]).reshape(-1,1))
+      
+        if predicted == False:
+            return("Darba izpildē ir novērojama aizkave")
+
+        if predicted == True: 
+            ## nav aizkave, taču ir jāpārbauda, vai darbs nav veikts par ātru
+            
+            ### vai ir novērojams pārāk ātrs darbs
+            X = np.array(
+                [
+                5.6, 
+                6.1, 
+                3.2, 
+                4.4, 
+                3.9, 
+                5.2,
+                1,
+                1.1,
+                0.9,
+                1,
+
+                0.1, 
+                0.3, 
+                0.4, 
+                0.3, 
+                0.3,
+                0.4, 
+                ]
+                
+                ).reshape(-1,1)
+
+            y = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+
+            logr = linear_model.LogisticRegression()
+            logr.fit(X,y)
+
+            predicted = logr.predict(np.array([secDelt/86400]).reshape(-1,1))
+
+            if predicted == False:
+                return ("Darbs tika izpildīts pārāk ātri")
+
+            if predicted == True:
+                return ("Rezultāts ir ticams")
+
+
+
+    return ("Sanāca kļūda izvēles darbībā")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ievietošana kalendārā
 def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums, dokumentaCelsGoogleIevade):
 
@@ -191,6 +502,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
 
     saiteUzID = saiteUzLietotni.get().strip()
     latvijaTime = '+03:00'
+    ticamiba = ""
 
     radioPoga = radioPogasIzvele.get()
     nosaukumsIevadei = ["Lidojums", "Braukšana", "Viesnīca", "Brīvdienas"]
@@ -224,12 +536,26 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
     laiks_b = str(laiks_b)[11:] # laiks pēc 1 stundas 
 
    
+
+
+   
+
+
+
     # datumu un laiku savienošana
     
     # 1) Ir izvēlēts datums, ir izvēlēts laiks, ir 2 datumi, ir 2 laiki 
     if ((len(datumsIevade) == 2 ) and (len(laiksIevade) == 2) and (datumsPoga==1) and (laiksPoga==1)):
         sakumaLaiks = str(datumsIevade[0] + "T"+ laiksIevade[0])
         beiguLaiks = str(datumsIevade[1] + "T"+ laiksIevade[1])
+
+        # analīzes veikšana, ja ir pieejami 2 datumi un 2 laiki
+        ticamiba = analizeLaiks(sakumaLaiks, beiguLaiks, radioPoga)
+
+        print(ticamiba)
+
+      
+
     # 2) Ir izvēlēts datums, ir izvēlēts laiks, ir 1 datums, ir 2 laiki    
     elif((len(datumsIevade) == 1 ) and (len(laiksIevade) >= 2) and (datumsPoga==1) and (laiksPoga==1)):
         laiksIevade.sort()
@@ -269,7 +595,6 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
         sakumaLaiks = str(laiksUnDatums_s)
         beiguLaiks = str(laiksUnDatums_b)
 
-
     elif((len(datumsIevade) == 0 ) and (len(laiksIevade) == 2) and (datumsPoga==1) and (laiksPoga==1)):
         laiksIevade.sort()
         sakumaLaiks = str(datums_s + "T"+ laiksIevade[0])
@@ -284,13 +609,16 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
     else:
         sakumaLaiks = str(laiksUnDatums_s)
         beiguLaiks = str(laiksUnDatums_b)
-        
+
+
+
+
     # notikuma īpašības
     if((epastsPoga==0) or (len(epastiIevade)==0) ):
         if attelsPoga == 1:
             event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -309,7 +637,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
         else:
             event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -325,7 +653,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             if attelsPoga == 1:
                 event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -347,7 +675,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             else:
                  event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -365,7 +693,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             if attelsPoga == 1:
                 event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -388,7 +716,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             else:
                 event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -407,7 +735,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             if attelsPoga == 1:
                 event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -431,7 +759,7 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
             else:
                 event = {
                         'summary': nosaukumsIevadei[radioPoga],
-                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums),
+                        'description': str(nosaukumsSkaidrojums[radioPoga] + "\n\nDokuments - " + dokumentaNosaukums + "\n\nTicamība - " + ticamiba),
                         'start': {
                             'dateTime': sakumaLaiks+latvijaTime,
                             'timeZone': 'Europe/Riga',
@@ -454,7 +782,8 @@ def ievadeKalendara(laiksIevade, datumsIevade, epastiIevade, dokumentaNosaukums,
     try:
         print("ievietošana google kalendārā\n")
         print(event)
-        
+
+        # noņemt komentāru, lai veiktu ievadi
         event = service.events().insert(calendarId=saiteUzID, body=event, supportsAttachments = True).execute() 
 
 
@@ -577,7 +906,25 @@ def ievietot_failus():
                 cp = datetime.datetime.now()
 
 
-                teksts = textract.process(x) 
+                # Dokumentu formāta noteikšana un bibliotēkas izvēle
+                name, extension = os.path.splitext(x)
+                dokumentaCels = ""
+
+                if extension == '.docx':
+                    teksts = docx2txt.process(x)
+
+                if extension == '.pdf':
+                    doc = fitz.open(x)
+                    teksts = ""
+                    for page in doc:
+                        textPage = page.getText()
+                        teksts += textPage
+
+                if extension == '.png' or extension == '.jpg' or extension == '.jpeg' or extension == '.tiff':
+                    im = Image.open(x)
+                    teksts = pytesseract.image_to_string(im)
+
+
 
 
                 cte = datetime.datetime.now()
@@ -613,54 +960,6 @@ def ievietot_failus():
         for x in response:
             print("Kalendāra nosaukums - ", x['summary'])
             print("Kalendāra ID - ", x['id'], "\n")
-
-
-
-        #   Grafiskais attēlojums
-
-#        if datumsIzvele.get() == 1:
-#            datumsG.sort()
-#            countD ={}
-#            for i in datumsG:
-#                if not i in countD:
-#                    countD[i] = 1
-#                else:
-#                    countD[i] += 1
-#            lists = sorted(countD.items())
-#            x, y = zip(*lists)
-#            plt.plot(x, y)
-#            plt.show()
-#
-#
-#
-#        if laiksIzvele.get() == 1:
-#            laiksG.sort()
-#            countL ={}
-#            for i in laiksG:
-#                if not i in countL:
-#                    countL[i] = 1
-#                else:
-#                    countL[i] += 1
-#            lists = sorted(countL.items())
-#            x, y = zip(*lists) 
-#            plt.plot(x, y)
-#            plt.show()
-#
-#        if epastsIzvele.get() == 1:
-#            epastsG.sort()
-#            countE ={}
-#            for i in epastsG:
-#                if not i in countE:
-#                    countE[i] = 1
-#                else:
-#                    countE[i] += 1
-#            lists = sorted(countE.items()) 
-#            x, y = zip(*lists) 
-#            plt.plot(x, y)
-#            plt.show()
-#
-
-        
 
 
     else:
@@ -827,22 +1126,13 @@ def tekstaAnalize(tekstsAnalize, dokumentaNosaukums, saiteUzDokumentu):
         dokumentaCels = ""
 
         if extension == '.docx':
-            
-            doc = aw.Document(saiteUzDokumentu)
-           
-            shapes = doc.get_child_nodes(aw.NodeType.SHAPE, True)
-            imageIndex = 0
-            
-            for shape in shapes :
-                shape = shape.as_shape()
-                if (shape.has_image) :
-                  
-                    imageFileName = (name + f".png")
-                    
-                    shape.image_data.save(imageFileName)
-                    dokumentaCels = str(name + f".png")
-                    break
-                break
+            link2 = pathlib.Path(saiteUzDokumentu) 
+            link3 = link2.parent
+            text = docx2txt.process(saiteUzDokumentu, link3)
+
+            dokumentaCels = str(link3) 
+            dokumentaCels = dokumentaCels + f"\image1.png"
+
 
         if extension == '.pdf':
            
@@ -859,12 +1149,89 @@ def tekstaAnalize(tekstsAnalize, dokumentaNosaukums, saiteUzDokumentu):
                     image.save(open(name + ".png", "wb"))
                     dokumentaCels = str(name + f".png")
 
-        if extension == '.png' or extension == '.jpg' or extension == '.jpeg':
-            dokumentaCels = str(name + f".png")
 
+
+
+
+        if extension == '.png' or extension == '.jpg' or extension == '.jpeg':
+            
+
+            image = cv2.imread(saiteUzDokumentu)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+
+            close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15,3))
+            close = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, close_kernel, iterations=1)
+
+            dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5,3))
+            dilate = cv2.dilate(close, dilate_kernel, iterations=1)
+
+            cnts = cv2.findContours(dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+            for c in cnts:
+                area = cv2.contourArea(c)
+                if area > 800 and area < 15000:
+                    x,y,w,h = cv2.boundingRect(c)
+                    cv2.rectangle(image, (x, y), (x + w, y + h), (255,255,255), -1)
+
+
+
+            cv2.imwrite(name + "temp.png", image)
+
+
+            ### https://stackoverflow.com/questions/55169645/square-detection-in-image
+            image = cv2.imread(name + "temp.png")
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            blur = cv2.medianBlur(gray, 5)
+            sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+            sharpen = cv2.filter2D(blur, -1, sharpen_kernel)
+
+            # Threshold and morph close
+            thresh = cv2.threshold(sharpen, 235, 255, cv2.THRESH_BINARY_INV)[1]
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            close = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+            # Find contours and filter using threshold area
+            cnts = cv2.findContours(close, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+
+            min_area = 10000
+            max_area = 150000000000000000
+            image_number = 0
+            for c in cnts:
+                area = cv2.contourArea(c)
+                if area > min_area and area < max_area:
+                    x,y,w,h = cv2.boundingRect(c)
+                    ROI = image[y:y+h, x:x+w]
+                    cv2.imwrite('ROI_{}.png'.format(image_number), ROI)
+                    cv2.rectangle(image, (x, y), (x + w, y + h), (36,255,12), 2)
+                    image_number += 1
+
+            dokumentaCels = str("ROI_0.png")
+
+
+
+       #dokumentaCels = str(name+extension)
         if dokumentaCels != "":
-            file_metadata = {'name': 'Attels_no_dokumenta.png'}
-            media = MediaFileUpload(dokumentaCels, mimetype='image/png')
+            try:
+                file_metadata = {'name': 'Attels_no_dokumenta.png'}
+            except:
+                file_metadata = {'name': 'Attels_no_dokumenta.jpg'}
+                try:
+                    file_metadata = {'name': 'Attels_no_dokumenta.jpeg'}
+                except:
+                    pass
+
+            
+            try:
+                media = MediaFileUpload(dokumentaCels, mimetype='image/png')
+            except:
+                media = MediaFileUpload(dokumentaCels, mimetype='image/jpg')
+                try:
+                    media = MediaFileUpload(dokumentaCels, mimetype='image/jpeg')
+                except:
+                    pass
+
             saglabatsAttels = service2.files().create(body=file_metadata, media_body=media, fields='webViewLink').execute()
             print ('File ID: %s' % saglabatsAttels.get('webViewLink'))
             dokumentaCelsGoogle = saglabatsAttels.get('webViewLink')
@@ -980,6 +1347,14 @@ def tekstaAnalize(tekstsAnalize, dokumentaNosaukums, saiteUzDokumentu):
 
     if ievade == 0:
         ievadeKalendara(laikiJauni, datumiJauni, epsatiJauni, dokumentaNosaukums, dokumentaCelsGoogle)
+
+
+
+
+
+
+
+
 
 
 
